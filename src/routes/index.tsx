@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Board } from "@/components/Board";
@@ -59,6 +59,12 @@ function PipelinePage() {
     return () => clearTimeout(t);
   }, [rawQuery]);
 
+  // The outreach queue's "open details" link lands here as /?company=<id>.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("company");
+    if (id) setOpenId(id);
+  }, []);
+
   const flashSaved = useCallback(() => {
     setSaved(true);
     setTimeout(() => setSaved(false), 1200);
@@ -90,7 +96,9 @@ function PipelinePage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (name: string) => createCompany({ name }),
+    // Created directly on the board, not through the outreach queue — it's
+    // already a live mandate, so it shouldn't need a touch to show up.
+    mutationFn: (name: string) => createCompany({ name, outreach_status: "responded" }),
     onSuccess: (company) => {
       qc.setQueryData<PipelineData>(pipelineQueryKey, (prev) =>
         prev ? { ...prev, companies: [company, ...prev.companies] } : prev,
@@ -101,7 +109,8 @@ function PipelinePage() {
   });
 
   const quickCreateMutation = useMutation({
-    mutationFn: ({ name, stage }: { name: string; stage: Stage }) => createCompany({ name, stage }),
+    mutationFn: ({ name, stage }: { name: string; stage: Stage }) =>
+      createCompany({ name, stage, outreach_status: "responded" }),
     onMutate: async ({ name, stage }) => {
       await qc.cancelQueries({ queryKey: pipelineQueryKey });
       const snapshot = qc.getQueryData<PipelineData>(pipelineQueryKey);
@@ -119,6 +128,13 @@ function PipelinePage() {
         contact_name: null,
         contact_email: null,
         follow_up_at: null,
+        outreach_status: "responded",
+        touch_count: 0,
+        last_touch_at: null,
+        next_touch_at: null,
+        employee_count: null,
+        industry: "",
+        website: "",
         archived: false,
         created_at: now,
         updated_at: now,
@@ -162,7 +178,9 @@ function PipelinePage() {
     [pipeline, query, searching],
   );
 
-  const boardCompanies = pipeline.companies.filter((c) => (showArchived ? true : !c.archived));
+  const boardCompanies = pipeline.companies.filter(
+    (c) => c.outreach_status === "responded" && (showArchived ? true : !c.archived),
+  );
 
   const openCompany =
     openId && openId !== NEW ? (pipeline.companies.find((c) => c.id === openId) ?? null) : null;
@@ -208,6 +226,12 @@ function PipelinePage() {
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-5 py-3">
           <h1 className="text-sm font-semibold uppercase tracking-[0.08em]">Pipeline</h1>
+          <Link
+            to="/outreach"
+            className="text-xs text-muted-foreground underline underline-offset-4"
+          >
+            Outreach
+          </Link>
           <div className="relative min-w-52 flex-1">
             <input
               ref={searchRef}

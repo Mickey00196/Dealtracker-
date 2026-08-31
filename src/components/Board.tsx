@@ -22,6 +22,10 @@ import {
   type Stage,
 } from "@/lib/pipeline";
 
+// The board shows mandates, not cold targets — Targeting lives in the
+// outreach queue until a target responds.
+const BOARD_STAGES = STAGES.filter((s) => s !== "targeting");
+
 type Props = {
   companies: Company[];
   lastActivity: Record<string, string>;
@@ -172,8 +176,8 @@ export function Board({ companies, lastActivity, onOpen, onStageChange, onQuickC
       onDragEnd={handleEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <div className="grid gap-x-5 gap-y-7 md:grid-cols-2 md:divide-x md:divide-border xl:grid-cols-5">
-        {STAGES.map((stage) => (
+      <div className="grid gap-x-5 gap-y-7 md:grid-cols-2 md:divide-x md:divide-border xl:grid-cols-4">
+        {BOARD_STAGES.map((stage) => (
           <div key={stage} className="min-w-0 xl:px-2 xl:first:pl-0 xl:last:pr-0">
             <Column
               stage={stage}

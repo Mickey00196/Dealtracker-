@@ -34,6 +34,13 @@ export type Company = {
   contact_name: string | null;
   contact_email: string | null;
   follow_up_at: string | null;
+  outreach_status: "active" | "responded" | "parked" | "dead";
+  touch_count: number;
+  last_touch_at: string | null;
+  next_touch_at: string | null;
+  employee_count: number | null;
+  industry: string;
+  website: string;
   archived: boolean;
   created_at: string;
   updated_at: string;
