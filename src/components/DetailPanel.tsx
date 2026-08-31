@@ -7,8 +7,11 @@ import {
   type LogEntry,
   type Stage,
   formatAbsolute,
+  fromDatetimeLocalValue,
   indicativeRentLine,
+  isFollowUpOverdue,
   nf,
+  toDatetimeLocalValue,
 } from "@/lib/pipeline";
 
 type Props = {
@@ -79,11 +82,7 @@ export function DetailPanel({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-40 bg-foreground/5"
-        onClick={onClose}
-        aria-hidden
-      />
+      <div className="fixed inset-0 z-40 bg-foreground/5" onClick={onClose} aria-hidden />
       <aside
         role="dialog"
         aria-label={creating ? "New company" : company.name}
@@ -132,8 +131,8 @@ export function DetailPanel({
 
         {creating ? (
           <div className="px-5 py-5 text-sm text-muted-foreground">
-            Enter a company name to create the mandate. The requirement brief and
-            logbook open once it exists.
+            Enter a company name to create the mandate. The requirement brief and logbook open once
+            it exists.
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
@@ -154,6 +153,51 @@ export function DetailPanel({
                     {STAGE_LABEL[s as Stage]}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-4">
+                <Label>Follow up</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    key={`fu-${company.id}`}
+                    type="datetime-local"
+                    defaultValue={
+                      company.follow_up_at ? toDatetimeLocalValue(company.follow_up_at) : ""
+                    }
+                    onBlur={(e) =>
+                      patchIfChanged("follow_up_at", fromDatetimeLocalValue(e.target.value))
+                    }
+                    className="field field-hoverable tnum text-sm"
+                  />
+                  {company.follow_up_at ? (
+                    <button
+                      type="button"
+                      onClick={() => onPatch({ follow_up_at: null })}
+                      className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 transition-colors duration-100 hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+                {company.follow_up_at ? (
+                  <p
+                    className="mt-1.5 text-[0.6875rem]"
+                    style={{
+                      color: isFollowUpOverdue(company.follow_up_at)
+                        ? "var(--color-follow-up-overdue)"
+                        : "var(--color-follow-up-foreground)",
+                    }}
+                  >
+                    {isFollowUpOverdue(company.follow_up_at)
+                      ? "Overdue — this mandate needs action."
+                      : "This mandate is pinned to the top of its column until then."}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">
+                    Set a date and time to pin this mandate to the top of the board as an action
+                    item.
+                  </p>
+                )}
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
@@ -222,9 +266,7 @@ export function DetailPanel({
                     key={`tm-${company.id}`}
                     type="date"
                     defaultValue={company.target_move_date ?? ""}
-                    onBlur={(e) =>
-                      patchIfChanged("target_move_date", e.target.value || null)
-                    }
+                    onBlur={(e) => patchIfChanged("target_move_date", e.target.value || null)}
                     className="field field-hoverable tnum text-sm"
                   />
                 </div>
@@ -302,7 +344,6 @@ export function DetailPanel({
               </div>
             </div>
 
-
             {/* logbook */}
             <div className="px-5 py-4">
               <h3 className="mb-3 text-[0.8125rem] font-semibold uppercase tracking-wide">
@@ -340,9 +381,7 @@ export function DetailPanel({
                     <div className="tnum text-[0.6875rem] text-muted-foreground">
                       {formatAbsolute(e.created_at)}
                     </div>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-                      {e.body}
-                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{e.body}</p>
                   </li>
                 ))}
                 {entries.length === 0 ? (

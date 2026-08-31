@@ -33,6 +33,7 @@ export type Company = {
   notes: string;
   contact_name: string | null;
   contact_email: string | null;
+  follow_up_at: string | null;
   archived: boolean;
   created_at: string;
   updated_at: string;
@@ -108,6 +109,25 @@ export function isStale(iso: string, now = Date.now()) {
   return now - new Date(iso).getTime() > STALE_DAYS * 86_400_000;
 }
 
+export function isFollowUpOverdue(iso: string, now = Date.now()) {
+  return new Date(iso).getTime() <= now;
+}
+
+/**
+ * Companies with a follow-up date float to the top of their column, soonest
+ * (or most overdue) first, since a pending follow-up means action is required.
+ */
+export function byFollowUpThenActivity(lastActivity: Record<string, string>) {
+  return (a: Company, b: Company) => {
+    if (a.follow_up_at && b.follow_up_at) {
+      return a.follow_up_at.localeCompare(b.follow_up_at);
+    }
+    if (a.follow_up_at) return -1;
+    if (b.follow_up_at) return 1;
+    return (lastActivity[b.id] ?? b.created_at).localeCompare(lastActivity[a.id] ?? a.created_at);
+  };
+}
+
 export const nf = new Intl.NumberFormat("de-DE");
 
 export function indicativeRentLine(
@@ -122,8 +142,7 @@ export function indicativeRentLine(
   if (lo == null || hi == null) return null;
   const low = lo * rentPerSqm;
   const high = hi * rentPerSqm;
-  const range =
-    low === high ? `€ ${nf.format(low)}` : `€ ${nf.format(low)} – € ${nf.format(high)}`;
+  const range = low === high ? `€ ${nf.format(low)}` : `€ ${nf.format(low)} – € ${nf.format(high)}`;
   const overBudget = budget != null && low > budget;
   return {
     text: `Indicative: ${range} / year at ${nf.format(rentPerSqm)} €/m²`,
@@ -151,6 +170,30 @@ export function formatAbsolute(iso: string): string {
       hour12: false,
     })
     .replace(",", ",");
+}
+
+/** Converts a stored ISO timestamp to the local value a `datetime-local` input expects. */
+export function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Converts a `datetime-local` input value (local time, no timezone) to an ISO timestamp. */
+export function fromDatetimeLocalValue(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+export function formatFollowUp(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 export function formatRelative(iso: string, now = Date.now()): string {

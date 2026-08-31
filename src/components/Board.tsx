@@ -17,6 +17,7 @@ import {
   STAGES,
   STAGE_COLOR_VAR,
   STAGE_LABEL,
+  byFollowUpThenActivity,
   type Company,
   type Stage,
 } from "@/lib/pipeline";
@@ -112,9 +113,7 @@ function Column({
         <h2 className="text-[0.8125rem] font-semibold tracking-wide uppercase">
           {STAGE_LABEL[stage]}
         </h2>
-        <span className="tnum ml-auto text-xs text-muted-foreground">
-          {companies.length}
-        </span>
+        <span className="tnum ml-auto text-xs text-muted-foreground">{companies.length}</span>
       </header>
       <div
         ref={setNodeRef}
@@ -122,10 +121,7 @@ function Column({
           isOver ? "bg-accent/60" : ""
         }`}
       >
-        <SortableContext
-          items={companies.map((c) => c.id)}
-          strategy={verticalListSortingStrategy}
-        >
+        <SortableContext items={companies.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {companies.map((c) => (
             <CompanyCard
               key={c.id}
@@ -141,27 +137,12 @@ function Column({
   );
 }
 
-
-export function Board({
-  companies,
-  lastActivity,
-  onOpen,
-  onStageChange,
-  onQuickCreate,
-}: Props) {
+export function Board({ companies, lastActivity, onOpen, onStageChange, onQuickCreate }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const byStage = (stage: Stage) =>
-    companies
-      .filter((c) => c.stage === stage)
-      .sort((a, b) =>
-        (lastActivity[b.id] ?? b.created_at).localeCompare(
-          lastActivity[a.id] ?? a.created_at,
-        ),
-      );
+    companies.filter((c) => c.stage === stage).sort(byFollowUpThenActivity(lastActivity));
 
   const active = companies.find((c) => c.id === activeId) ?? null;
 

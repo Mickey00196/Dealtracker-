@@ -101,8 +101,7 @@ function PipelinePage() {
   });
 
   const quickCreateMutation = useMutation({
-    mutationFn: ({ name, stage }: { name: string; stage: Stage }) =>
-      createCompany({ name, stage }),
+    mutationFn: ({ name, stage }: { name: string; stage: Stage }) => createCompany({ name, stage }),
     onMutate: async ({ name, stage }) => {
       await qc.cancelQueries({ queryKey: pipelineQueryKey });
       const snapshot = qc.getQueryData<PipelineData>(pipelineQueryKey);
@@ -119,6 +118,7 @@ function PipelinePage() {
         notes: "",
         contact_name: null,
         contact_email: null,
+        follow_up_at: null,
         archived: false,
         created_at: now,
         updated_at: now,
@@ -136,17 +136,13 @@ function PipelinePage() {
         prev
           ? {
               ...prev,
-              companies: prev.companies.map((c) =>
-                c.id === ctx?.tempId ? company : c,
-              ),
+              companies: prev.companies.map((c) => (c.id === ctx?.tempId ? company : c)),
             }
           : prev,
       );
       flashSaved();
     },
   });
-
-
 
   const logMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: string }) => createLogEntry(id, body),
@@ -166,9 +162,7 @@ function PipelinePage() {
     [pipeline, query, searching],
   );
 
-  const boardCompanies = pipeline.companies.filter((c) =>
-    showArchived ? true : !c.archived,
-  );
+  const boardCompanies = pipeline.companies.filter((c) => (showArchived ? true : !c.archived));
 
   const openCompany =
     openId && openId !== NEW ? (pipeline.companies.find((c) => c.id === openId) ?? null) : null;
@@ -185,9 +179,7 @@ function PipelinePage() {
       const target = e.target as HTMLElement | null;
       const typing =
         !!target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable);
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
 
       if (e.key === "Escape") {
         if (panelOpen) setOpenId(null);
@@ -257,13 +249,11 @@ function PipelinePage() {
           <SearchResults hits={hits} query={query} onOpen={setOpenId} />
         ) : boardCompanies.length === 0 ? (
           <div className="max-w-md py-16">
-            <h2 className="text-lg font-semibold tracking-[-0.015em]">
-              Your pipeline is empty
-            </h2>
+            <h2 className="text-lg font-semibold tracking-[-0.015em]">Your pipeline is empty</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Each company is one mandate. Move it across the five stages as the search
-              progresses, keep the requirement brief up to date, and log every call and
-              viewing. Cards untouched for two weeks are flagged.
+              Each company is one mandate. Move it across the five stages as the search progresses,
+              keep the requirement brief up to date, and log every call and viewing. Cards untouched
+              for two weeks are flagged.
             </p>
             <button
               onClick={() => setOpenId(NEW)}
@@ -277,9 +267,7 @@ function PipelinePage() {
             companies={boardCompanies}
             lastActivity={lastActivity}
             onOpen={setOpenId}
-            onStageChange={(id, stage: Stage) =>
-              patchMutation.mutate({ id, patch: { stage } })
-            }
+            onStageChange={(id, stage: Stage) => patchMutation.mutate({ id, patch: { stage } })}
             onQuickCreate={(name, stage) => quickCreateMutation.mutate({ name, stage })}
           />
         )}
@@ -291,13 +279,9 @@ function PipelinePage() {
           entries={openEntries}
           saved={saved}
           onClose={() => setOpenId(null)}
-          onPatch={(patch) =>
-            openCompany && patchMutation.mutate({ id: openCompany.id, patch })
-          }
+          onPatch={(patch) => openCompany && patchMutation.mutate({ id: openCompany.id, patch })}
           onCreate={(name) => createMutation.mutate(name)}
-          onAddLog={(body) =>
-            openCompany && logMutation.mutate({ id: openCompany.id, body })
-          }
+          onAddLog={(body) => openCompany && logMutation.mutate({ id: openCompany.id, body })}
         />
       ) : null}
     </div>
