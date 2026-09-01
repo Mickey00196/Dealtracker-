@@ -4,17 +4,19 @@
 
 /*
  * Pipeline tracker design system.
- * Calm, dense, professional. Warm off-white surface, deep slate accent.
- * All colors are oklch tokens; never hardcode colors in components.
+ * Paper, ink, and one quiet accent family — a considered palette instead of
+ * saturated status chips. Fraunces carries page/section titles; Inter carries
+ * everything else.
  */
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
 
-  --radius-sm: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -38,7 +40,6 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-warning: var(--warning);
-  --color-highlight: var(--highlight);
   --color-follow-up: var(--follow-up);
   --color-follow-up-foreground: var(--follow-up-foreground);
   --color-follow-up-overdue: var(--follow-up-overdue);
@@ -48,47 +49,55 @@
   --color-stage-viewing: var(--stage-viewing);
   --color-stage-negotiating: var(--stage-negotiating);
   --color-stage-closed: var(--stage-closed);
+
+  --shadow-card: var(--shadow-card-value);
+  --shadow-card-hover: var(--shadow-card-hover-value);
+  --shadow-frame: var(--shadow-frame-value);
 }
 
 :root {
-  --radius: 0.375rem;
+  --radius: 0.75rem;
 
-  --background: oklch(0.976 0.005 85);
-  --foreground: oklch(0.24 0.018 258);
-  --surface: oklch(0.958 0.006 85);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.018 258);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.018 258);
+  --background: #f6f5f1;
+  --foreground: #1c1b18;
+  --surface: #f0efe9;
+  --card: #ffffff;
+  --card-foreground: #1c1b18;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b18;
 
-  --primary: oklch(0.38 0.052 256);
-  --primary-foreground: oklch(0.985 0.003 85);
-  --secondary: oklch(0.945 0.006 85);
-  --secondary-foreground: oklch(0.32 0.02 258);
-  --muted: oklch(0.951 0.005 85);
-  --muted-foreground: oklch(0.545 0.014 258);
-  --accent: oklch(0.93 0.012 256);
-  --accent-foreground: oklch(0.3 0.03 256);
-  --destructive: oklch(0.53 0.17 27);
-  --destructive-foreground: oklch(0.985 0.003 85);
+  --primary: #1f2a3d;
+  --primary-foreground: #fbfaf7;
+  --secondary: #f0efe9;
+  --secondary-foreground: #47453e;
+  --muted: #f0efe9;
+  --muted-foreground: #86837a;
+  --accent: #eef1f5;
+  --accent-foreground: #1f2a3d;
+  --destructive: #7a3530;
+  --destructive-foreground: #fbfaf7;
 
-  --border: oklch(0.905 0.006 85);
-  --border-strong: oklch(0.845 0.008 85);
-  --input: oklch(0.895 0.006 85);
-  --ring: oklch(0.38 0.052 256);
+  --border: #edece5;
+  --border-strong: #e5e3db;
+  --input: #e5e3db;
+  --ring: #1f2a3d;
 
-  --warning: oklch(0.72 0.13 72);
-  --highlight: oklch(0.9 0.11 95);
+  --warning: #8a6a34;
+  --follow-up: #f4ede2;
+  --follow-up-foreground: #8a6a34;
+  --follow-up-overdue: #7a3530;
 
-  --follow-up: oklch(0.93 0.06 255);
-  --follow-up-foreground: oklch(0.34 0.1 258);
-  --follow-up-overdue: oklch(0.6 0.19 25);
+  --stage-targeting: #8a6a34;
+  --stage-searching: #1f2a3d;
+  --stage-viewing: #33513f;
+  --stage-negotiating: #6b5a7a;
+  --stage-closed: #b8b5aa;
 
-  --stage-targeting: oklch(0.58 0.04 265);
-  --stage-searching: oklch(0.62 0.045 245);
-  --stage-viewing: oklch(0.62 0.075 215);
-  --stage-negotiating: oklch(0.66 0.1 145);
-  --stage-closed: oklch(0.6 0.012 258);
+  --shadow-card-value: 0 1px 2px rgba(28, 27, 24, 0.04), 0 1px 1px rgba(28, 27, 24, 0.03);
+  --shadow-card-hover-value: 0 4px 16px -6px rgba(28, 27, 24, 0.12);
+  --shadow-frame-value:
+    0 1px 2px rgba(28, 27, 24, 0.04), 0 24px 48px -24px rgba(28, 27, 24, 0.16),
+    0 8px 20px -12px rgba(28, 27, 24, 0.08);
 }
 
 @layer base {
@@ -102,6 +111,9 @@
   }
 
   body {
+    background-image:
+      radial-gradient(60rem 32rem at 12% -10%, rgba(31, 42, 61, 0.05), transparent 60%),
+      radial-gradient(50rem 30rem at 100% 0%, rgba(122, 53, 48, 0.035), transparent 55%);
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-feature-settings: "cv05", "ss01";
@@ -158,6 +170,21 @@
   }
   to {
     transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@utility panel-in-up {
+  animation: panel-in-up 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes panel-in-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
     opacity: 1;
   }
 }

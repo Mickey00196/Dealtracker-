@@ -225,10 +225,10 @@ function PipelinePage() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-5 py-3">
-          <h1 className="text-sm font-semibold uppercase tracking-[0.08em]">Pipeline</h1>
+          <h1 className="font-serif text-xl font-medium tracking-tight">Pipeline</h1>
           <Link
             to="/outreach"
-            className="text-xs text-muted-foreground underline underline-offset-4"
+            className="text-xs font-semibold text-muted-foreground uppercase transition-colors duration-100 hover:text-foreground"
           >
             Outreach
           </Link>
@@ -257,7 +257,7 @@ function PipelinePage() {
           </label>
           <button
             onClick={() => setOpenId(NEW)}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity duration-100 hover:opacity-90"
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity duration-100 hover:opacity-90"
           >
             New company
           </button>
@@ -281,7 +281,7 @@ function PipelinePage() {
             </p>
             <button
               onClick={() => setOpenId(NEW)}
-              className="mt-5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity duration-100 hover:opacity-90"
+              className="mt-5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity duration-100 hover:opacity-90"
             >
               New company
             </button>

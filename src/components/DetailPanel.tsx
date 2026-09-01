@@ -108,7 +108,7 @@ export function DetailPanel({
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
-              className="field field-hoverable text-lg font-semibold tracking-[-0.015em]"
+              className="field field-hoverable font-serif text-xl font-medium tracking-tight"
             />
           </div>
           <div className="flex items-center gap-3 pt-1">

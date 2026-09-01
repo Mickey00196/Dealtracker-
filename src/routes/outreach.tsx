@@ -1,21 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { OutcomeBar } from "@/components/OutcomeBar";
-import { OutreachSession } from "@/components/OutreachSession";
+import { OutreachDetail } from "@/components/OutreachDetail";
 import { OutreachTable } from "@/components/OutreachTable";
-import { fetchPipeline, pipelineQueryKey, type LogEntry, type PipelineData } from "@/lib/pipeline";
 import {
-  computeStats,
+  createLogEntry,
+  fetchPipeline,
+  pipelineQueryKey,
+  updateCompany,
+  type Company,
+  type LogEntry,
+} from "@/lib/pipeline";
+import {
+  createTarget,
   dueTargets,
   fetchOutreach,
   outreachQueryKey,
-  recordTouch,
   sortQueue,
-  type OutreachData,
   type Target,
-  type TouchOutcome,
 } from "@/lib/outreach";
 
 export const Route = createFileRoute("/outreach")({
@@ -24,7 +27,7 @@ export const Route = createFileRoute("/outreach")({
       { title: "Outreach" },
       {
         name: "description",
-        content: "Work the cold outreach queue: one keystroke logs a touch and schedules the next.",
+        content: "The cold-outreach queue: every lead you're working, and what's due next.",
       },
     ],
   }),
@@ -39,16 +42,18 @@ function OutreachPage() {
     queryFn: fetchOutreach,
   });
 
-  // Log entries live in the pipeline query; session mode shows the history.
+  // Log entries live in the pipeline query; the detail view shows the history.
   const { data: pipeline } = useQuery({
     queryKey: pipelineQueryKey,
     queryFn: fetchPipeline,
   });
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionIndex, setSessionIndex] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [dueOnly, setDueOnly] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [saved, setSaved] = useState(false);
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   // A target becomes due through time passing, not through anything the user
   // clicks, so the view has to recompute on a timer or it goes stale.
@@ -58,12 +63,51 @@ function OutreachPage() {
     return () => clearInterval(id);
   }, []);
 
-  const outreach: OutreachData = data ?? { targets: [], touches: [] };
+  useEffect(() => {
+    if (adding) addInputRef.current?.focus();
+  }, [adding]);
 
-  const queue = useMemo(() => sortQueue(outreach.targets, now), [outreach.targets, now]);
+  const targets: Target[] = data ?? [];
+  const queue = useMemo(() => sortQueue(targets, now), [targets, now]);
   const due = useMemo(() => dueTargets(queue, now), [queue, now]);
   const visible = dueOnly ? due : queue;
-  const stats = useMemo(() => computeStats(outreach.touches, now), [outreach.touches, now]);
+
+  const flashSaved = useCallback(() => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1200);
+  }, []);
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: outreachQueryKey });
+    qc.invalidateQueries({ queryKey: pipelineQueryKey });
+  };
+
+  const patchMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Company> }) =>
+      updateCompany(id, patch),
+    onSuccess: () => {
+      invalidateAll();
+      flashSaved();
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (name: string) => createTarget(name),
+    onSuccess: (target) => {
+      invalidateAll();
+      setOpenId(target.id);
+      setAdding(false);
+      setNameDraft("");
+    },
+  });
+
+  const logMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => createLogEntry(id, body),
+    onSuccess: () => {
+      invalidateAll();
+      flashSaved();
+    },
+  });
 
   const entriesFor = useCallback(
     (companyId: string): LogEntry[] =>
@@ -73,190 +117,96 @@ function OutreachPage() {
     [pipeline],
   );
 
-  const touchMutation = useMutation({
-    mutationFn: ({
-      target,
-      outcome,
-      note,
-      date,
-    }: {
-      target: Target;
-      outcome: TouchOutcome;
-      note: string;
-      date?: string;
-    }) => recordTouch(target, outcome, note, date),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: outreachQueryKey });
-      qc.invalidateQueries({ queryKey: pipelineQueryKey });
+  const lastActivityFor = useCallback(
+    (target: Target): string => {
+      const entries = entriesFor(target.id);
+      return entries[0]?.created_at ?? target.created_at;
     },
-  });
-
-  const applyOutcomeAt = useCallback(
-    (index: number, outcome: TouchOutcome, note: string, date?: string) => {
-      const target = visible[index];
-      if (!target) return;
-      touchMutation.mutate({ target, outcome, note, ...(date !== undefined ? { date } : {}) });
-      // The row leaves the due list once handled, so staying on the same
-      // index lands on the next company without moving the cursor.
-      setSelectedIndex((i) => Math.min(i, Math.max(0, visible.length - 2)));
-    },
-    [visible, touchMutation],
+    [entriesFor],
   );
 
-  /* ----- keyboard: j/k or arrows to move, 1-5 to log ----- */
-  useEffect(() => {
-    if (sessionActive) return;
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      const typing =
-        !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-      if (typing) return;
-
-      if (e.key === "j" || e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, visible.length - 1));
-      } else if (e.key === "k" || e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "1" || e.key === "3" || e.key === "4") {
-        // 2 and 5 need a date, so they go through the outcome bar UI.
-        e.preventDefault();
-        const map: Record<"1" | "3" | "4", TouchOutcome> = {
-          "1": "no_answer",
-          "3": "not_interested",
-          "4": "responded",
-        };
-        applyOutcomeAt(selectedIndex, map[e.key], "");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [visible.length, selectedIndex, applyOutcomeAt, sessionActive]);
-
-  /* ----- session mode ----- */
-  const sessionTarget = due[sessionIndex];
-
-  function startSession() {
-    if (due.length === 0) return;
-    setSessionIndex(0);
-    setSessionActive(true);
+  function commitAdd() {
+    const name = nameDraft.trim();
+    if (name) createMutation.mutate(name);
+    else setAdding(false);
   }
 
-  function sessionOutcome(outcome: TouchOutcome, note: string, date?: string) {
-    if (!sessionTarget) return;
-    touchMutation.mutate({
-      target: sessionTarget,
-      outcome,
-      note,
-      ...(date !== undefined ? { date } : {}),
-    });
-    advanceSession();
-  }
-
-  function advanceSession() {
-    if (sessionIndex + 1 >= due.length) {
-      setSessionActive(false);
-      setSessionIndex(0);
-    } else {
-      setSessionIndex((i) => i + 1);
-    }
-  }
-
-  if (sessionActive && sessionTarget) {
-    return (
-      <OutreachSession
-        target={sessionTarget}
-        entries={entriesFor(sessionTarget.id)}
-        position={sessionIndex + 1}
-        total={due.length}
-        onOutcome={sessionOutcome}
-        onSkip={advanceSession}
-        onExit={() => setSessionActive(false)}
-      />
-    );
-  }
-
-  const selected = visible[selectedIndex];
+  const open = targets.find((t) => t.id === openId) ?? null;
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-3 px-5 py-3">
-          <h1 className="text-sm font-semibold tracking-[0.08em]">OUTREACH</h1>
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-4 px-6 py-4">
+          <h1 className="font-serif text-xl font-medium tracking-tight">Outreach</h1>
           <Link
             to="/"
-            className="text-xs text-muted-foreground underline underline-offset-4 transition-colors duration-100 hover:text-foreground"
+            className="text-xs font-semibold text-muted-foreground uppercase transition-colors duration-100 hover:text-foreground"
           >
-            Board
+            Pipeline
           </Link>
 
-          <div className="tnum ml-auto flex items-center gap-4 text-xs text-muted-foreground">
-            <span>{stats.touchesThisWeek} touches this week</span>
-            <span>{stats.repliesThisWeek} replies</span>
-            <span>{stats.meetingsThisMonth} meetings this month</span>
-          </div>
-
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
             <input
               type="checkbox"
               checked={dueOnly}
-              onChange={(e) => {
-                setDueOnly(e.target.checked);
-                setSelectedIndex(0);
-              }}
+              onChange={(e) => setDueOnly(e.target.checked)}
               className="accent-primary"
             />
             Due only
           </label>
 
-          <button
-            onClick={startSession}
-            disabled={due.length === 0}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity duration-100 hover:opacity-90 disabled:opacity-35"
-          >
-            Start outreach ({due.length})
-          </button>
+          {adding ? (
+            <input
+              ref={addInputRef}
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder="Company name"
+              className="w-40 rounded-full border border-ring bg-card px-3 py-1.5 text-xs transition-colors duration-100 placeholder:text-muted-foreground focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitAdd();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setNameDraft("");
+                  setAdding(false);
+                }
+              }}
+              onBlur={commitAdd}
+            />
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity duration-100 hover:opacity-90"
+            >
+              Add
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] px-5 py-6 pb-28">
+      <main className="relative mx-auto max-w-[1200px] px-6 py-8">
         {error ? (
           <p className="text-sm text-destructive">Could not load the queue.</p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
-          <OutreachTable
-            targets={visible}
-            selectedIndex={selectedIndex}
-            onSelect={setSelectedIndex}
-            onOpen={(id) => {
-              window.location.href = `/?company=${id}`;
-            }}
-            now={now}
-          />
+          <OutreachTable targets={visible} onOpen={setOpenId} now={now} />
         )}
       </main>
 
-      {selected ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border-strong bg-card">
-          <div className="mx-auto max-w-[1200px]">
-            <div className="flex items-baseline gap-3 px-4 pt-3">
-              <span className="font-medium">{selected.name}</span>
-              <span className="tnum text-xs text-muted-foreground">
-                touch {selected.touch_count + 1}
-              </span>
-            </div>
-            <OutcomeBar
-              disabled={touchMutation.isPending}
-              onOutcome={(outcome, note, date) =>
-                applyOutcomeAt(selectedIndex, outcome, note, date)
-              }
-            />
-            <p className="px-4 pb-3 text-[0.6875rem] text-muted-foreground">
-              j/k to move · 1, 3, 4 log directly · 2 and 5 ask for a date
-            </p>
-          </div>
-        </div>
+      {open ? (
+        <OutreachDetail
+          target={open}
+          entries={entriesFor(open.id)}
+          lastActivity={lastActivityFor(open)}
+          saved={saved}
+          onClose={() => setOpenId(null)}
+          onPatch={(patch) =>
+            patchMutation.mutate({ id: open.id, patch: patch as Partial<Company> })
+          }
+          onAddLog={(body) => logMutation.mutate({ id: open.id, body })}
+        />
       ) : null}
     </div>
   );
